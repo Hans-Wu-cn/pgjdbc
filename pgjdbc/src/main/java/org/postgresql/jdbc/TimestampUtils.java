@@ -520,11 +520,11 @@ public class TimestampUtils {
     int slen = s.length();
     // convert postgres's infinity values to internal infinity magic value
     if (slen == 8 && s.equals("infinity")) {
-      return ZonedDateTime.of(LocalDateTime.MAX,this.getDefaultTz().toZoneId());
+      return ZonedDateTime.of(LocalDateTime.MAX,this.timeZoneProvider.get().toZoneId());
     }
 
     if (slen == 9 && s.equals("-infinity")) {
-      return ZonedDateTime.of(LocalDateTime.MIN,this.getDefaultTz().toZoneId());
+      return ZonedDateTime.of(LocalDateTime.MIN,this.timeZoneProvider.get().toZoneId());
     }
 
     ParsedTimestamp ts = parseBackendTimestamp(s);
@@ -1440,9 +1440,9 @@ public class TimestampUtils {
 
     ParsedBinaryTimestamp parsedTimestamp = this.toProlepticParsedTimestampBin(bytes);
     if (parsedTimestamp.infinity == Infinity.POSITIVE) {
-      return ZonedDateTime.of(LocalDateTime.MAX,this.getDefaultTz().toZoneId());
+      return ZonedDateTime.of(LocalDateTime.MAX,this.timeZoneProvider.get().toZoneId());
     } else if (parsedTimestamp.infinity == Infinity.NEGATIVE) {
-      return ZonedDateTime.of(LocalDateTime.MIN,this.getDefaultTz().toZoneId());
+      return ZonedDateTime.of(LocalDateTime.MIN,this.timeZoneProvider.get().toZoneId());
     }
 
     // hardcode utc because the backend does not provide us the timezone
