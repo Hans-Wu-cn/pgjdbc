@@ -68,11 +68,7 @@ import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Map;
@@ -1057,6 +1053,8 @@ class PgPreparedStatement extends PgStatement implements PreparedStatement {
       setTime(parameterIndex, (OffsetTime) x);
     } else if (x instanceof LocalDateTime) {
       setTimestamp(parameterIndex, (LocalDateTime) x);
+    }else if (x instanceof ZonedDateTime) {
+      setTimestamp(parameterIndex, (ZonedDateTime) x);
     } else if (x instanceof OffsetDateTime) {
       setTimestamp(parameterIndex, (OffsetDateTime) x);
     } else if (x instanceof Map) {
@@ -1517,6 +1515,12 @@ class PgPreparedStatement extends PgStatement implements PreparedStatement {
       throws SQLException {
     int oid = Oid.TIMESTAMP;
     bindString(i, getTimestampUtils().toString(localDateTime), oid);
+  }
+
+  private void setTimestamp(@Positive int i, ZonedDateTime zonedDateTime)
+      throws SQLException {
+    int oid = Oid.TIMESTAMP;
+    bindString(i, getTimestampUtils().toString(zonedDateTime.toOffsetDateTime()), oid);
   }
 
   private void setTimestamp(@Positive int i, OffsetDateTime offsetDateTime)

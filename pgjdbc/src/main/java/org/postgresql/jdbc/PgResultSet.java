@@ -73,12 +73,7 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -740,6 +735,28 @@ public class PgResultSet implements ResultSet, PGRefCursorResultSet {
       }
     }
 
+    throw new PSQLException(
+        GT.tr("Cannot convert the column of type {0} to requested type {1}.",
+            Oid.toString(oid), "java.time.LocalDateTime"),
+        PSQLState.DATA_TYPE_MISMATCH);
+  }
+
+  private @Nullable ZonedDateTime getZonedDateTime(int i) throws SQLException {
+    byte[] value = getRawValue(i);
+    if (value == null) {
+      return null;
+    }
+
+    int col = i - 1;
+    int oid = fields[col].getOID();
+
+    if (oid == Oid.TIMESTAMP || oid == Oid.TIMESTAMPTZ) {
+      if (isBinary(i)) {
+        return getTimestampUtils().toZonedDateTimeBin(value);
+      } else {
+        return getTimestampUtils().toZonedDateTime(castNonNull(getString(i)));
+      }
+    }
     throw new PSQLException(
         GT.tr("Cannot convert the column of type {0} to requested type {1}.",
             Oid.toString(oid), "java.time.LocalDateTime"),
@@ -3919,6 +3936,8 @@ public class PgResultSet implements ResultSet, PGRefCursorResultSet {
       return type.cast(getLocalTime(columnIndex));
     } else if (type == LocalDateTime.class) {
       return type.cast(getLocalDateTime(columnIndex));
+    }else if (type == ZonedDateTime.class) {
+      return type.cast(getZonedDateTime(columnIndex));
     } else if (type == OffsetDateTime.class) {
       return type.cast(getOffsetDateTime(columnIndex));
     } else if (type == OffsetTime.class) {

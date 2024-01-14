@@ -24,14 +24,7 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.chrono.IsoEra;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
@@ -512,6 +505,33 @@ public class TimestampUtils {
     // intentionally ignore time zone
     // 2004-10-19 10:23:54+03:00 is 2004-10-19 10:23:54 locally
     LocalDateTime result = LocalDateTime.of(ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second, ts.nanos);
+    if (ts.era == GregorianCalendar.BC) {
+      return result.with(ChronoField.ERA, IsoEra.BCE.getValue());
+    } else {
+      return result;
+    }
+  }
+
+  public @PolyNull ZonedDateTime toZonedDateTime(@PolyNull String s) throws SQLException {
+    if (s == null) {
+      return null;
+    }
+
+    int slen = s.length();
+    // convert postgres's infinity values to internal infinity magic value
+    if (slen == 8 && s.equals("infinity")) {
+      return ZonedDateTime.of(LocalDateTime.MAX,this.getDefaultTz().toZoneId());
+    }
+
+    if (slen == 9 && s.equals("-infinity")) {
+      return ZonedDateTime.of(LocalDateTime.MIN,this.getDefaultTz().toZoneId());
+    }
+
+    ParsedTimestamp ts = parseBackendTimestamp(s);
+
+    // intentionally ignore time zone
+    // 2004-10-19 10:23:54+03:00 is 2004-10-19 10:23:54 locally
+    ZonedDateTime result = ZonedDateTime.of(ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second, ts.nanos,ts.offset);
     if (ts.era == GregorianCalendar.BC) {
       return result.with(ChronoField.ERA, IsoEra.BCE.getValue());
     } else {
@@ -1406,6 +1426,28 @@ public class TimestampUtils {
     // hardcode utc because the backend does not provide us the timezone
     // Postgres is always UTC
     return LocalDateTime.ofEpochSecond(parsedTimestamp.millis / 1000L, parsedTimestamp.nanos, ZoneOffset.UTC);
+  }
+
+  /**
+   * Returns the zoned date time object matching the given bytes with {@link Oid#TIMESTAMP} or
+   * {@link Oid#TIMESTAMPTZ}.
+   * @param bytes The binary encoded local date time value.
+   *
+   * @return The parsed local date time object.
+   * @throws PSQLException If binary format could not be parsed.
+   */
+  public ZonedDateTime toZonedDateTimeBin(byte[] bytes) throws PSQLException {
+
+    ParsedBinaryTimestamp parsedTimestamp = this.toProlepticParsedTimestampBin(bytes);
+    if (parsedTimestamp.infinity == Infinity.POSITIVE) {
+      return ZonedDateTime.of(LocalDateTime.MAX,this.getDefaultTz().toZoneId());
+    } else if (parsedTimestamp.infinity == Infinity.NEGATIVE) {
+      return ZonedDateTime.of(LocalDateTime.MIN,this.getDefaultTz().toZoneId());
+    }
+
+    // hardcode utc because the backend does not provide us the timezone
+    // Postgres is always UTC
+    return ZonedDateTime.ofInstant(Instant.ofEpochSecond(parsedTimestamp.millis / 1000L, parsedTimestamp.nanos), this.getDefaultTz().toZoneId());
   }
 
   /**
